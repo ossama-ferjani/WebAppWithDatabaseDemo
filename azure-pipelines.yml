@@ -1,17 +1,10 @@
-# ASP.NET
-# Build and test ASP.NET projects.
-# Add steps that publish symbols, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
-
 trigger:
-- master
+- main
 
 pool:
   name: 'default'
 
 variables:
-  solution: '**/*.sln'
-  buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
 
 steps:
@@ -21,34 +14,37 @@ steps:
     version: '6.x'
     installationPath: $(Agent.ToolsDirectory)/dotnet
 
-- powershell: |
-    # Install .NET Framework 4.5 Developer Pack
-    $url = "https://download.visualstudio.microsoft.com/download/pr/8ea7dce9-d3df-42d0-ae0d-3ff7fe1f1461/3734b5fbdd02d6b2af4c8c1fdff9b88e/ndp45-devpack-enu.exe"
-    $outputFile = "$(Agent.TempDirectory)/ndp45-devpack-enu.exe"
-    Invoke-WebRequest -Uri $url -OutFile $outputFile
-    Start-Process -FilePath $outputFile -ArgumentList '/quiet', '/norestart' -Wait
-  displayName: 'Install .NET Framework 4.5 Developer Pack'
-
-- task: VSBuild@1
+- task: DotNetCoreCLI@2
+  displayName: 'Restore NuGet packages'
   inputs:
-    solution: '**/*.sln'
-    platform: 'Any CPU'
-    configuration: 'Release'
-    msbuildArgs: '/p:VisualStudioVersion=17.0 /p:_MSDeployUserAgent="VSTS_$(Release.ReleaseId)_$(Build.DefinitionName)_$(Build.BuildId)"'
-- task: NuGetToolInstaller@1
+    command: 'restore'
+    projects: '**/*.csproj'
+    feedsToUse: 'select'
 
-- task: NuGetCommand@2
+- task: DotNetCoreCLI@2
+  displayName: 'Build'
   inputs:
-    restoreSolution: '$(solution)'
+    command: 'build'
+    projects: '**/*.csproj'
+    arguments: '--configuration $(buildConfiguration)'
 
-- task: VSBuild@1
+- task: DotNetCoreCLI@2
+  displayName: 'Test'
   inputs:
-    solution: '$(solution)'
-    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    command: 'test'
+    projects: '**/*Tests.csproj'
+    arguments: '--configuration $(buildConfiguration) --collect "Code coverage"'
 
-- task: VSTest@2
+- task: DotNetCoreCLI@2
+  displayName: 'Publish'
   inputs:
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    command: 'publish'
+    projects: '**/*.csproj'
+    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/publish'
+    zipAfterPublish: true
+
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish Artifact'
+  inputs:
+    artifactName: 'publish'
+    targetPath: '$(Build.ArtifactStagingDirectory)/publish'
