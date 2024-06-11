@@ -15,6 +15,26 @@ variables:
   buildConfiguration: 'Release'
 
 steps:
+- task: UseDotNet@2
+  inputs:
+    packageType: 'sdk'
+    version: '6.x'
+    installationPath: $(Agent.ToolsDirectory)/dotnet
+
+- powershell: |
+    # Install .NET Framework 4.5 Developer Pack
+    $url = "https://download.visualstudio.microsoft.com/download/pr/8ea7dce9-d3df-42d0-ae0d-3ff7fe1f1461/3734b5fbdd02d6b2af4c8c1fdff9b88e/ndp45-devpack-enu.exe"
+    $outputFile = "$(Agent.TempDirectory)/ndp45-devpack-enu.exe"
+    Invoke-WebRequest -Uri $url -OutFile $outputFile
+    Start-Process -FilePath $outputFile -ArgumentList '/quiet', '/norestart' -Wait
+  displayName: 'Install .NET Framework 4.5 Developer Pack'
+
+- task: VSBuild@1
+  inputs:
+    solution: '**/*.sln'
+    platform: 'Any CPU'
+    configuration: 'Release'
+    msbuildArgs: '/p:VisualStudioVersion=17.0 /p:_MSDeployUserAgent="VSTS_$(Release.ReleaseId)_$(Build.DefinitionName)_$(Build.BuildId)"'
 - task: NuGetToolInstaller@1
 
 - task: NuGetCommand@2
