@@ -2,10 +2,10 @@ trigger:
 - main
 
 pool:
-  name: 'default'
+  vmImage: 'windows-latest'
 
 variables:
-  buildConfiguration: 'Release'
+  buildConfiguration: 'build'
 
 steps:
 - task: UseDotNet@2
